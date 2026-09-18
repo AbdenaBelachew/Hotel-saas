@@ -1,0 +1,30 @@
+# Environment
+.env
+
+# .NET
+backend/**/bin/
+backend/**/obj/
+*.user
+*.suo
+
+# Node / Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Logs
+logs/
+*.log
+
+# IDE
+.vs/
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Postgres data volume (if bind-mounted locally)
+database/pgdata/

@@ -1,0 +1,57 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: hotel_pms_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-hotel_pms}
+      POSTGRES_USER: ${POSTGRES_USER:-hotel_pms}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-locally}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hotel_pms} -d ${POSTGRES_DB:-hotel_pms}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: hotel_pms_api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-hotel_pms};Username=${POSTGRES_USER:-hotel_pms};Password=${POSTGRES_PASSWORD:-change-me-locally}"
+      Jwt__Secret: ${Jwt__Secret}
+      Jwt__Issuer: ${Jwt__Issuer:-HotelPms}
+      Jwt__Audience: ${Jwt__Audience:-HotelPmsClient}
+      Jwt__AccessTokenMinutes: ${Jwt__AccessTokenMinutes:-15}
+      Jwt__RefreshTokenDays: ${Jwt__RefreshTokenDays:-7}
+      SeedData__DefaultPassword: ${SeedData__DefaultPassword}
+      Cors__AllowedOrigins__0: "http://localhost:${FRONTEND_PORT:-5173}"
+    ports:
+      - "${API_HTTP_PORT:-5080}:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:5080/api/v1}
+    container_name: hotel_pms_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"
+
+volumes:
+  pgdata:
